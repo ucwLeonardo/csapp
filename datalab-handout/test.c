@@ -66,6 +66,8 @@ int main() {
   // printf("%x\n", float_twice(1));
   // printf("%x\n", float_twice(0x80000001));
   // printf("%x\n", float_twice(0x7fffff));
-  printf("%x\n", ilog2(16));
+  // printf("%x\n", ilog2(16));
+  printf("%x\n", ((0x7fc00001 << 1) >> 24) == -1 ? 1 : 0);
+  printf("%x\n", (0x7fc00001 << 9) != 0 ? 1 : 0);
   return 0;
 }

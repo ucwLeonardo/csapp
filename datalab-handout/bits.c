@@ -181,12 +181,35 @@ int logicalShift(int x, int n) {
  */
 int bitCount(int x) {
   // https://stackoverflow.com/questions/3815165/how-to-implement-bitcount-using-only-bitwise-operators
-  int c;
-  c = (x & 0x55555555) + ((x >> 1) & 0x55555555);
-  c = (c & 0x33333333) + ((c >> 2) & 0x33333333);
-  c = (c & 0x0F0F0F0F) + ((c >> 4) & 0x0F0F0F0F);
-  c = (c & 0x00FF00FF) + ((c >> 8) & 0x00FF00FF);
-  c = (c & 0x0000FFFF) + ((c >> 16) & 0x0000FFFF);
+  // 0x55555555 is not allowed, so do the other constant, need to construct them.
+  // int c;
+  // c = (x & 0x55555555) + ((x >> 1) & 0x55555555);
+  // c = (c & 0x33333333) + ((c >> 2) & 0x33333333);
+  // c = (c & 0x0F0F0F0F) + ((c >> 4) & 0x0F0F0F0F);
+  // c = (c & 0x00FF00FF) + ((c >> 8) & 0x00FF00FF);
+  // c = (c & 0x0000FFFF) + ((c >> 16) & 0x0000FFFF);
+  // return c;
+
+  int tmp, mask1, mask2, mask3, mask4, mask5;
+  tmp = 0x55 | (0x55 << 8);
+  mask1 = tmp | (tmp << 16); // 0x55555555
+
+  tmp = 0x33 | (0x33 << 8);
+  mask2 = tmp | (tmp << 16); // 0x33333333
+
+  tmp = 0x0F | (0x0F << 8);
+  mask3 = tmp | (tmp << 16); // 0x0F0F0F0F
+
+  mask4 = 0xFF | (0xFF << 16); // 0x00FF00FF
+
+  tmp = 0xFF | (0xFF << 8);
+  mask5 = tmp | (0 << 16); // 0x0000FFFF
+
+  int c = (x & mask1) + ((x >> 1) & mask1);
+  c = (c & mask2) + ((c >> 2) & mask2);
+  c = (c & mask3) + ((c >> 4) & mask3);
+  c = (c & mask4) + ((c >> 8) & mask4);
+  c = (c & mask5) + ((c >> 16) & mask5);
   return c;
 }
 /*
@@ -222,7 +245,7 @@ int fitsBits(int x, int n) {
   int mask = x >> 31;
   int masked = x ^ mask;  // ~ negative x, positive x won't change
 
-  return !(masked >> (n - 1)); // can't fit if > 0
+  return !(masked >> (n + (~1 + 1))); // can't fit if > 0
 }
 /*
  * divpwr2 - Compute x/(2^n), for 0 <= n <= 30
@@ -293,13 +316,30 @@ int ilog2(int x) {
   x = x | x >> 4;
   x = x | x >> 8;
   x = x | x >> 16;
+
   // count 1
+  int tmp, mask1, mask2, mask3, mask4, mask5;
+  tmp = 0x55 | (0x55 << 8);
+  mask1 = tmp | (tmp << 16); // 0x55555555
+
+  tmp = 0x33 | (0x33 << 8);
+  mask2 = tmp | (tmp << 16); // 0x33333333
+
+  tmp = 0x0F | (0x0F << 8);
+  mask3 = tmp | (tmp << 16); // 0x0F0F0F0F
+
+  mask4 = 0xFF | (0xFF << 16); // 0x00FF00FF
+
+  tmp = 0xFF | (0xFF << 8);
+  mask5 = tmp | (0 << 16); // 0x0000FFFF
+
   int c;
-  c = (x & 0x55555555) + ((x >> 1) & 0x55555555);
-  c = (c & 0x33333333) + ((c >> 2) & 0x33333333);
-  c = (c & 0x0F0F0F0F) + ((c >> 4) & 0x0F0F0F0F);
-  c = (c & 0x00FF00FF) + ((c >> 8) & 0x00FF00FF);
-  c = (c & 0x0000FFFF) + ((c >> 16) & 0x0000FFFF);
+  c = (x & mask1) + ((x >> 1) & mask1);
+  c = (c & mask2) + ((c >> 2) & mask2);
+  c = (c & mask3) + ((c >> 4) & mask3);
+  c = (c & mask4) + ((c >> 8) & mask4);
+  c = (c & mask5) + ((c >> 16) & mask5);
+
   return c + (~1 + 1);  // c - 1, do not include MSB
 }
 /*
@@ -314,11 +354,7 @@ int ilog2(int x) {
  *   Rating: 2
  */
 unsigned float_neg(unsigned uf) {
-  int mask = 0x000000FF << 23;
-  int exp = mask & uf;
-  int denom = !~((exp >> 23) + ~0x000000FF);
-  int frac = ~((1 << 31) + mask) & uf;
-  if (denom & !!frac)
+  if ((uf << 1) >> 24 == 0xFF && ((uf << 9 != 0)))  // notice uf is unsigned int, logical right shift
     return uf;
   else
     return (1 << 31) ^ uf;
