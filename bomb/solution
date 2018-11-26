@@ -1,5 +1,4 @@
 phase_1:
-
 Border relations with Canada have never been better.
 
 phase_2:
@@ -17,6 +16,8 @@ construct "flyers" from string "maduiersnfotvbylSo you think you can stop the bo
 using last byte of hex for each input char to shift to right position in the string.
 
 phase_6:
+4 3 2 1 6 5
+
 x/30wd ($rdx - 0x30)
 0x6032c0 <n48+16>:      0       0       0       0
 0x6032d0 <node1>:       332     1       6304480 0
@@ -32,7 +33,9 @@ x/20wd $rsp + 0x20
 0x7fffffffdc30: 6304544 0       6304528 0
 0x7fffffffdc40: 0       0       4203024 0
 
+Notice: the above address contents are not the correct answer
+
 logic:
 1. convert each number in input to 7 - x
 2. choose 6 numbers stored in ($rdx - 0x30) by each input as index,
-3. the chosen numbers should be in desending order
+3. the chosen numbers should be in desending order, which stores in ($rsp + 0x20)
