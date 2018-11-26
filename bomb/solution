@@ -1,0 +1,38 @@
+phase_1:
+
+Border relations with Canada have never been better.
+
+phase_2:
+1 2 4 8 16 32
+
+phase_3:
+2 707
+
+phase_4:
+7 0
+
+phase_5:
+ionefg
+construct "flyers" from string "maduiersnfotvbylSo you think you can stop the bomb with ctrl-c, do you?",
+using last byte of hex for each input char to shift to right position in the string.
+
+phase_6:
+x/30wd ($rdx - 0x30)
+0x6032c0 <n48+16>:      0       0       0       0
+0x6032d0 <node1>:       332     1       6304480 0
+0x6032e0 <node2>:       168     2       6304496 0
+0x6032f0 <node3>:       924     3       6304512 0
+0x603300 <node4>:       691     4       6304528 0
+0x603310 <node5>:       477     5       6304544 0
+0x603320 <node6>:       443     6       0       0
+
+x/20wd $rsp + 0x20
+0x7fffffffdc10: 6304464 0       6304480 0
+0x7fffffffdc20: 6304496 0       6304512 0
+0x7fffffffdc30: 6304544 0       6304528 0
+0x7fffffffdc40: 0       0       4203024 0
+
+logic:
+1. convert each number in input to 7 - x
+2. choose 6 numbers stored in ($rdx - 0x30) by each input as index,
+3. the chosen numbers should be in desending order
