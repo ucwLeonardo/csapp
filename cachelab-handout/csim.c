@@ -110,6 +110,7 @@ void parse_line(char *str, int *set, int *tag) {
   *tag = tag_temp;
 }
 
+// Using an extra bit in line to implement LRU
 void evict(int s, int tag) {
   Line *set = CACHE[s];
   ttime min = (ttime) -1;
