@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include "cachelab.h"
 
+#define MIN(X,Y) (((X) < (Y)) ? (X) : (Y))
+#define MAX(X,Y) (((X) < (Y)) ? (Y) : (X))
+
 int is_transpose(int M, int N, int A[N][M], int B[M][N]);
 
 /* 
@@ -20,8 +23,87 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
  *     be graded. 
  */
 char transpose_submit_desc[] = "Transpose submission";
-void transpose_submit(int M, int N, int A[N][M], int B[M][N])
-{
+void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
+    int b = 8, starti, startj;
+    // upper right part of A, loop by A
+    int i, j, k;
+    for (starti = 0; starti < M; starti += b) {
+        for (startj = starti; startj < N; startj += b) {
+            // fill cache first
+            for (k = 0; k < b; k++) {
+                B[startj + k][starti + k] = A[starti + k][startj + k];
+            }
+
+            // cache friendly, skewed rectangle
+            for (j = startj + 1; j < MIN(startj+2*b, N); j++) {
+                for (i = starti + MAX(0, j-startj-b+1); i < starti + MIN(j-startj, b); i++) {
+                    B[j][i] = A[i][j];
+                }
+            }
+        }
+    }
+
+    // lower left part of A, loop by B
+    for (starti = 0; starti < M; starti += b) {
+        for (startj = starti; startj < N; startj += b) {
+            // fill cache first
+            for (k = 0; k < b; k++) {
+                B[starti + k][startj + k] = A[startj + k][starti + k];
+            }
+
+            // cache friendly, skewed rectangle
+            for (j = startj + 1; j < MIN(startj+2*b, N); j++) {
+                for (i = starti + MAX(0, j-startj-b+1); i < starti + MIN(j-startj, b); i++) {
+                    B[i][j] = A[j][i];
+                }
+            }
+        }
+    }
+}
+
+char transpose_combine_desc[] = "Transpose skewed rectangle as a whole";
+void transpose_combine(int M, int N, int A[N][M], int B[M][N]) {
+    // printf("address of A: %p, address of B: %p, difference: %ld\n", A, B, B - A);
+    int b = 8, a = 8, starti, startj;
+    // upper right part of A, loop by A
+    int i, j, k;
+    for (starti = 0; starti < M; starti += a) {
+        for (startj = starti; startj < N; startj += b) {
+            // printf("starti: %d, startj: %d\n", starti, startj);
+            // fill cache first
+            for (k = 0; k < a; k++) {
+                if (startj+k < N && starti+k < M) {
+                    B[startj + k][starti + k] = A[starti + k][startj + k];
+                }
+            }
+
+            // cache friendly, skewed rectangle
+            for (j = startj + 1; j < MIN(startj+b+a, N); j++) {
+                for (i = starti + MAX(0, j-startj-b+1); i < starti + MIN(j-startj, a); i++) {
+                    B[j][i] = A[i][j];
+                }
+            }
+        }
+    }
+
+    // lower left part of A, loop by B
+    for (starti = 0; starti < M; starti += a) {
+        for (startj = starti; startj < N; startj += b) {
+            // fill cache first
+            for (k = 0; k < a; k++) {
+                if (startj+k < N && starti+k < M) {
+                    B[starti + k][startj + k] = A[startj + k][starti + k];
+                }
+            }
+
+            // cache friendly, skewed rectangle
+            for (j = startj + 1; j < MIN(startj+b+a, N); j++) {
+                for (i = starti + MAX(0, j-startj-b+1); i < starti + MIN(j-startj, a); i++) {
+                    B[i][j] = A[j][i];
+                }
+            }
+        }
+    }
 }
 
 /* 
@@ -32,6 +114,62 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 /* 
  * trans - A simple baseline transpose function, not optimized for the cache.
  */
+char transpose_verbose_desc[] = "Transpose split";
+void transpose_verbose(int M, int N, int A[N][M], int B[M][N])
+{
+    int b = 8, starti, startj;
+    // upper right part of A, loop by A
+    int i, j, k;
+    for (starti = 0; starti < M; starti += b) {
+        for (startj = starti; startj < N; startj += b) {
+            // fill cache first
+            for (k = 0; k < b; k++) {
+                B[startj + k][starti + k] = A[starti + k][startj + k];
+            }
+
+            // cache friendly, left triangle
+            for (j = startj + 1; j < startj + b; j++) {
+                for (i = starti; i < starti + (j-startj); i++) {
+                    B[j][i] = A[i][j];
+                }
+            }
+            // right triangle if exist
+            if (j < N) {
+                for ( ; j < startj + 2 * b; j++) {
+                    for (i = starti + (j - startj - b) + 1; i < starti + b; i++) {
+                        B[j][i] = A[i][j];
+                    }
+                }
+            }
+        }
+    }
+
+    // lower left part of A, loop by B, so code can be reused
+    for (starti = 0; starti < M; starti += b) {
+        for (startj = starti; startj < N; startj += b) {
+            // fill cache first, diagonal repeated, no big deal
+            for (k = 0; k < b; k++) {
+                B[starti + k][startj + k] = A[startj + k][starti + k];
+            }
+
+            // cache friendly, left triangle
+            for (j = startj + 1; j < startj + b; j++) {
+                for (i = starti; i < starti + (j-startj); i++) {
+                    B[i][j] = A[j][i];
+                }
+            }
+            // right triangle if exist
+            if (j < N) {
+                for ( ; j < startj + 2 * b; j++) {
+                    for (i = starti + (j - startj - b) + 1; i < starti + b; i++) {
+                        B[i][j] = A[j][i];
+                    }
+                }
+            }
+        }
+    }
+}
+
 char trans_desc[] = "Simple row-wise scan transpose";
 void trans(int M, int N, int A[N][M], int B[M][N])
 {
@@ -58,9 +196,8 @@ void registerFunctions()
     /* Register your solution function */
     registerTransFunction(transpose_submit, transpose_submit_desc); 
 
-    /* Register any additional transpose functions */
-    registerTransFunction(trans, trans_desc); 
-
+    /* Register combine function */
+    registerTransFunction(transpose_combine, transpose_combine_desc); 
 }
 
 /* 
