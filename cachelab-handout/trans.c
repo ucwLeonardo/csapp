@@ -24,37 +24,46 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
  */
 char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
-    int b = 8, starti, startj;
+    // printf("address of A: %p, address of B: %p, difference: %ld\n", A, B, B - A);
+    // Start address of A and B differ in upper 12 bits, so element with same indexes in them
+    // belongs to same cache set, different only in cache tag.
+    int b = 8, a = 8, starti, startj;
     // upper right part of A, loop by A
-    int i, j, k;
-    for (starti = 0; starti < M; starti += b) {
-        for (startj = starti; startj < N; startj += b) {
-            // fill cache first
-            for (k = 0; k < b; k++) {
-                B[startj + k][starti + k] = A[starti + k][startj + k];
-            }
-
-            // cache friendly, skewed rectangle
-            for (j = startj + 1; j < MIN(startj+2*b, N); j++) {
-                for (i = starti + MAX(0, j-startj-b+1); i < starti + MIN(j-startj, b); i++) {
+    int i, j;
+    for (starti = 0; starti < M; starti += a) {
+        for (startj = 0; startj < N; startj += b) {
+            // cache friendly, square
+            // traverse square in A by column, so modify by row in B
+            for (j = startj; j < MIN(N, startj + b); j++) {
+                for (i = starti; i < MIN(M, starti + a); i++) {
+                    if (i == j) // avoid number in diagonal, which cause cache conflict
+                        continue;
                     B[j][i] = A[i][j];
                 }
             }
+            // diagonal
+            if (starti == startj) {
+                for (int k = 0, i = starti; k < a; k++)
+                    B[starti+k][starti+k] = A[starti+k][starti+k];
+            }
         }
     }
+}
 
-    // lower left part of A, loop by B
-    for (starti = 0; starti < M; starti += b) {
-        for (startj = starti; startj < N; startj += b) {
-            // fill cache first
-            for (k = 0; k < b; k++) {
-                B[starti + k][startj + k] = A[startj + k][starti + k];
-            }
-
-            // cache friendly, skewed rectangle
-            for (j = startj + 1; j < MIN(startj+2*b, N); j++) {
-                for (i = starti + MAX(0, j-startj-b+1); i < starti + MIN(j-startj, b); i++) {
-                    B[i][j] = A[j][i];
+char transpose_submit_desc2[] = "Transpose submission for Matrix 2";
+void transpose_submit2(int M, int N, int A[N][M], int B[M][N]) {
+    printf("address of A: %p, address of B: %p, difference: %ld\n", A, B, B - A);
+    int b = 8, a = 16, starti, startj;
+    // upper right part of A, loop by A
+    int i, j;
+    for (starti = 0; starti < M; starti += a) {
+        for (startj = 0; startj < N; startj += b) {
+            // printf("starti: %d, startj: %d\n", starti, startj);
+            // cache friendly, square
+            // traverse square in A by column, so modify by row in B
+            for (j = startj; j < MIN(N, startj + b); j++) {
+                for (i = starti; i < MIN(M, starti + a); i++) {
+                    B[j][i] = A[i][j];
                 }
             }
         }
@@ -195,6 +204,8 @@ void registerFunctions()
 {
     /* Register your solution function */
     registerTransFunction(transpose_submit, transpose_submit_desc); 
+
+    registerTransFunction(transpose_submit2, transpose_submit_desc2); 
 
     /* Register combine function */
     registerTransFunction(transpose_combine, transpose_combine_desc); 
