@@ -43,7 +43,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
             }
             // diagonal
             if (starti == startj) {
-                for (int k = 0, i = starti; k < a; k++)
+                for (int k = 0; k < a; k++)
                     B[starti+k][starti+k] = A[starti+k][starti+k];
             }
         }
@@ -52,18 +52,40 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
 
 char transpose_submit_desc2[] = "Transpose submission for Matrix 2";
 void transpose_submit2(int M, int N, int A[N][M], int B[M][N]) {
-    printf("address of A: %p, address of B: %p, difference: %ld\n", A, B, B - A);
-    int b = 8, a = 16, starti, startj;
+    int b = 8, a = 4, starti, startj;
     // upper right part of A, loop by A
     int i, j;
     for (starti = 0; starti < M; starti += a) {
         for (startj = 0; startj < N; startj += b) {
-            // printf("starti: %d, startj: %d\n", starti, startj);
             // cache friendly, square
             // traverse square in A by column, so modify by row in B
             for (j = startj; j < MIN(N, startj + b); j++) {
                 for (i = starti; i < MIN(M, starti + a); i++) {
+                    if (i > 66)
+                        printf("A(%d, %d) = %d\n", i, j, A[i][j]);
+                    if (i == j) // avoid number in diagonal, which cause cache conflict
+                        continue;
                     B[j][i] = A[i][j];
+                }
+            }
+            // diagonal
+            int xmid = starti + a / 2;
+            int ymid = startj + b / 2;
+            // first tell the relative position between square and diagonal
+            if (xmid <= ymid) { // diagonal sit below square center
+                // then tell if diagonal cut through square
+                if ((startj >= starti && startj <= starti+a) && \
+                        (starti+a >= startj && starti+a <= startj+b)) {
+                    for (int k = startj; k < MIN(M, starti+a); k++) {
+                        B[k][k] = A[k][k];
+                    }
+                } 
+            } else {
+                if ((startj+b >= starti && startj+b <= starti+a) && \
+                        (starti >= startj && starti <= startj+b)) {
+                    for (int k = starti; k < MIN(N, startj+b); k++) {
+                        B[k][k] = A[k][k];
+                    }
                 }
             }
         }
