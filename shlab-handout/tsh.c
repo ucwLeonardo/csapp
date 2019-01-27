@@ -145,7 +145,6 @@ int main(int argc, char **argv)
 	}
 
 	/* Evaluate the command line */
-    trim(cmdline);  // trim leading and tailing whitespacea
 	eval(cmdline);
 	fflush(stdout);
 	fflush(stdout);
@@ -167,9 +166,43 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
-    if (strcmp(cmdline, "quit") == 0) {
-        exit(0);
+    char **argv = (char **) calloc(sizeof(char *), MAXARGS);
+    int bg;
+    int child_stat = 0;
+
+    bg = parseline(cmdline, argv);
+
+    if (builtin_cmd(argv)) {
+        return;
     }
+    
+    sigset_t mask, prev;
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &prev);
+
+    pid_t pid;
+    pid = fork();
+    if (pid == 0) { // child
+        sigprocmask(SIG_SETMASK, &prev, NULL);  // unblock SIGCHILD
+        setpgid(0, 0);  // set child's pgid = pid, see last hint in pdf
+        if (execve(argv[0], argv, environ) < 0) {
+            printf("%s: Command not found\n", argv[0]);
+            exit(1);
+        }
+    }
+    
+    if (!bg) {  // foreground job
+        addjob(jobs, pid, FG, cmdline);
+        sigprocmask(SIG_SETMASK, &prev, NULL);
+        wait(&child_stat);
+        printf("pid: %d, child stat: %d\n", pid, child_stat);
+        deletejob(jobs, pid);
+    } else {    // backgoround job
+        printf("[%d] (%d) %s", nextjid, pid, cmdline);
+        addjob(jobs, pid, BG, cmdline);
+        sigprocmask(SIG_SETMASK, &prev, NULL);
+    }
+
     return;
 }
 
@@ -204,8 +237,8 @@ int parseline(const char *cmdline, char **argv)
     }
 
     while (delim) {
-	argv[argc++] = buf;
-	*delim = '\0';
+	argv[argc++] = buf; // first set pointer as start of str
+	*delim = '\0';  // then, cut the string at delim
 	buf = delim + 1;
 	while (*buf && (*buf == ' ')) /* ignore spaces */
 	       buf++;
@@ -236,6 +269,12 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+    if (strcmp(argv[0], "quit") == 0)
+        exit(0);
+    else if (strcmp(argv[0], "jobs") == 0) {
+        listjobs(jobs);
+        return 1;
+    }
     return 0;     /* not a builtin command */
 }
 
@@ -268,6 +307,28 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+    pid_t pid = waitpid(-1, NULL, 0);
+    printf("sigchild received from pid: %d\n", pid);
+    return;
+}
+void sigchld_handler2(int sig) 
+{
+    // printf("SIGCHILD received\n");
+    int olderrno = errno;
+    sigset_t mask_all, prev_all;
+    pid_t pid;
+
+    sigfillset(&mask_all);
+    if ((pid = waitpid(-1, NULL, 0)) > 0) {  // reap child
+        printf("pid: %d reaped\n", pid);
+        sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+        deletejob(jobs, pid);
+        listjobs(jobs);
+        sigprocmask(SIG_SETMASK, &prev_all, NULL);
+    } else if (errno != ECHILD) {
+        unix_error("waitpid error\n");
+    }
+    errno = olderrno;
     return;
 }
 
@@ -278,6 +339,11 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+    pid_t pid = fgpid(jobs);
+    kill(-pid, sig);
+    if (deletejob(jobs, pid) == 0)
+        unix_error("Delete job failed\n");
+    printf("Job [%d] (%d) terminated by signal %d\n", nextjid, pid, sig);
     return;
 }
 
@@ -288,6 +354,13 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+    pid_t pid = fgpid(jobs);
+    struct job_t *job = getjobpid(jobs, pid);
+    // send STP signal to job
+    kill(-pid, sig);
+    printf("Job [%d] (%d) stopped by signal %d\n", job->jid, pid, sig);
+    // modify job status
+    job->state = ST;
     return;
 }
 
