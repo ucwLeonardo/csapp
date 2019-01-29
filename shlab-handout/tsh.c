@@ -286,16 +286,50 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv) 
 {
     struct job_t *job;
-    if (strcmp(argv[0], "bg") == 0) {
-        char *param = argv[1];
-        if (param && strlen(param) == 2) {
-            int jid = atoi(&param[1]);
-            job = getjobjid(jobs, jid);
-            job->state = BG;
-            printf("[%d] (%d) %s", jid, job->pid, job->cmdline);
-            kill(-job->pid, SIGCONT); // resume job, using default handler
+    char *param = argv[1];
+    int pid, jid, fg;
+    fg = strcmp(argv[0], "fg") == 0;    // fg or not
+
+    if (!param) {
+        printf("%s command requires PID or %%jobid argument\n", argv[0]);
+        return;
+    }
+
+    if (param[0] == '%') {  // arg is jid
+        jid = atoi(&param[1]);
+        job = getjobjid(jobs, jid);
+        if (!job) {
+            printf("%%%d: No such job\n", jid);
+            return;
+        }
+    } else {    // arg pid
+        pid = atoi(param);
+        if (pid < 1000) {
+            printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+            return;
+        }
+        job = getjobpid(jobs, pid);
+        if (!job) {
+            printf("(%d): No such process\n", pid);
+            return;
         }
     }
+
+    if (fg) {
+        if (job->state == BG) {
+            job->state = FG;
+            waitfg(job->pid);
+        } else if (job->state == ST) {
+            job->state = FG;
+            kill(-job->pid, SIGCONT);
+            waitfg(job->pid);
+        }
+    } else {    // bg command
+        job->state = BG;
+        printf("[%d] (%d) %s", jid, job->pid, job->cmdline);
+        kill(-job->pid, SIGCONT); // resume job, using default handler
+    }
+
     return;
 }
 
