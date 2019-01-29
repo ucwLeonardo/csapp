@@ -20,3 +20,8 @@ mysplit.c	# Forks a child that spins for <n> seconds
 mystop.c        # Spins for <n> seconds and sends SIGTSTP to itself
 myint.c         # Spins for <n> seconds and sends SIGINT to itself
 
+This lab elaborates how to correctly synchronize execution flow to 
+avoid nasty concurrency bugs caused by race conditioning, by managing
+a job list mantained by shell.
+For examples of redirection, refer to redirect() in my CS162 repo:
+https://github.com/hyqLeonardo/cs162/blob/master/hw1/shell.c
