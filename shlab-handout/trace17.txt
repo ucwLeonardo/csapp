@@ -1,0 +1,10 @@
+#
+# trace17.txt - Tests redirect /bin/ls to file temp.txt.
+# wc should return 35 35 357
+#
+
+/bin/echo tsh> /bin/ls > temp.txt
+/bin/ls > temp.txt
+
+/bin/echo tsh> /usr/bin/wc temp.txt
+/usr/bin/wc temp.txt
