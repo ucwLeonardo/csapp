@@ -12,12 +12,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <fcntl.h>
 
 /* Misc manifest constants */
 #define MAXLINE    1024   /* max line size */
 #define MAXARGS     128   /* max args on a command line */
 #define MAXJOBS      16   /* max jobs at any point in time */
 #define MAXJID    1<<16   /* max job ID */
+#define WSIZE      0644   /* size for open file */
 
 /* Job states */
 #define UNDEF 0 /* undefined */
@@ -87,6 +89,8 @@ typedef void handler_t(int);
 handler_t *Signal(int signum, handler_t *handler);
 
 void trim(char *str);
+
+void redirect(char *director, char **argv);
 /*
  * main - The shell's main routine 
  */
@@ -168,7 +172,7 @@ int main(int argc, char **argv)
  *
  * NOTICE - I'm using printf() here though it's not thread safe, and 
  * it's recommended in the lecture to use wrapper functions provided
- * in csapp.h. However, there're conflict of global constant. As the
+ * in csapp.h. However, there're conflict of global constant. Since the
  * shell behaves fine without it, I wouldn't bother change this naive
  * implementation.
 */
@@ -192,6 +196,14 @@ void eval(char *cmdline)
     if (pid == 0) { // child
         setpgid(0, 0);  // set child's pgid = pid, see last hint in pdf
         sigprocmask(SIG_SETMASK, &prev, NULL);  // unblock SIGCHILD
+
+        // redirect preprocess
+        char *first_arg = argv[1];
+        if (strlen(first_arg) == 1 && (first_arg[0] == '<' || \
+                    first_arg[0] == '>')) {
+            redirect(first_arg, argv);
+        }
+
         if (execve(argv[0], argv, environ) < 0) {
             printf("%s: Command not found\n", argv[0]);
             exit(1);    // child process exit, won't affect shell process
@@ -681,4 +693,22 @@ void trim(char *str) {
 
 void printjob(struct job_t job) {
     printf("pid: %d, jid: %d, state: %d\n", job.pid, job.jid, job.state);
+}
+
+void redirect(char *director, char **argv) {
+    int fd;
+    if (*director == '<') {
+        if ((fd = open(argv[2], O_RDONLY)) < 0) {
+            printf("open file %s to read error\n", argv[2]);
+            exit(1);
+        }
+        dup2(fd, 0);
+    } else {    // '>'
+        if ((fd = open(argv[2], O_CREAT|O_TRUNC|O_WRONLY, 0644)) < 0) {
+            printf("open file %s to write error\n", argv[2]);
+            exit(1);
+        }
+        dup2(fd, 1);
+    }
+    argv[1] = NULL;
 }
