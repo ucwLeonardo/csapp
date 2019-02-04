@@ -165,6 +165,12 @@ int main(int argc, char **argv)
  * each child process must have a unique process group ID so that our
  * background children don't receive SIGINT (SIGTSTP) from the kernel
  * when we type ctrl-c (ctrl-z) at the keyboard.  
+ *
+ * NOTICE - I'm using printf() here though it's not thread safe, and 
+ * it's recommended in the lecture to use wrapper functions provided
+ * in csapp.h. However, there're conflict of global constant. As the
+ * shell behaves fine without it, I wouldn't bother change this naive
+ * implementation.
 */
 void eval(char *cmdline) 
 {
@@ -188,7 +194,7 @@ void eval(char *cmdline)
         sigprocmask(SIG_SETMASK, &prev, NULL);  // unblock SIGCHILD
         if (execve(argv[0], argv, environ) < 0) {
             printf("%s: Command not found\n", argv[0]);
-            exit(1);
+            exit(1);    // child process exit, won't affect shell process
         }
     }
     if (!bg) {  // foreground job
@@ -365,11 +371,18 @@ void waitfg(pid_t pid)
  *
  * NOTICE - This handler is triggered by signals sent by `kill()`,
  *     waitpid returns pid > 0 whenever there're process being stopped
- *     or terminated. (by param `WUNTRACED | WNOHANG`)
+ *     or terminated. (by param `WUNTRACED | WNOHANG`, mainly to avoid
+ *     blocking, or say busy waiting)
+ *
  *     For example, when hit ctrl-z, signal SIGTSTP is first handled by 
  *     sigstp_handler, where `kill(pid, SIGTSTP)` is called. Which
  *     triggers sigchld_handler, and WIFSTOPPED(status) returns `true`.
  *     So, this is the handler to do the work of managing joblist.
+ *
+ *     And this handler is called when either fg and bg job terminated,
+ *     who generate SIGCHLD. With no distinction of reaping a fg or bg
+ *     job (using waitpid) saves the effort to treat them separately 
+ *     using `sigsuspend` as suggested in Recitation 10.
  */
 void sigchld_handler(int sig) 
 {
